@@ -1,0 +1,15 @@
+$ROOM	dungeon
+#ECHO	you awaken in a dark dungeon
+#EXAM	the dungeon is very dark
+#NORTH	forest
+#EAST	cave
+
+$ROOM	forest
+#ECHO	you approach the enterance to a forest
+#EXAM	the forest looks dangerous
+#SOUTH	dungeon
+
+$ROOM	cave
+#ECHO	you approach the enterance to a cave
+#EXAM	the cave is very cold and damp
+#WEST	dungeon
