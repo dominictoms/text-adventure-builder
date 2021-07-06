@@ -4,31 +4,52 @@
 #include <vector>
 #include <string>
 
-class Room
+class Config
 {
 	public:
-		// text outputs
-		std::string name;
-		std::string echo;
-		std::string examine;
-
-		// location names
-		std::string northName;
-		std::string eastName;
-		std::string southName;
-		std::string westName;
-
-		// location indexes
-		int north = -1;
-		int east = -1;
-		int south = -1;
-		int west = -1;
+		std::string entryPointName;
+		int entryPoint;
 };
 
 class Player
 {
 	public:
 		std::vector<std::string> inventory;
+};
+
+class Room
+{
+	public:
+		// text outputs
+		std::string name, echo, examine;
+
+		// location names
+		std::string northName, eastName, southName, westName;
+
+		// location indexes
+		int north = -1, east = -1, south = -1, west = -1;
+};
+
+class GameDeclarations
+{
+	public:
+		Config config;
+		Player player;
+		std::vector<Room> rooms;
+
+	// constructor for game declarations
+	GameDeclarations(Config configObj, Player playerObj, std::vector<Room> roomsArr)
+	{
+		config = configObj;
+		player = playerObj;
+		rooms = roomsArr;
+	}
+
+	// empty constructor cus i'm lazy
+	GameDeclarations()
+	{
+
+	}
 };
 
 std::vector<std::string> splitString(std::string str)
@@ -82,13 +103,19 @@ std::vector<Room> setRoomIndexes(std::vector<Room> rooms)
 	return rooms;
 }
 
-std::vector<Room> readTextFile(std::string filePath)
+GameDeclarations readTextFile(std::string filePath)
 {
 	// read text file
 	std::ifstream read(filePath);
 
-	// array of rooms
+	// vector of rooms
 	std::vector<Room> rooms;
+
+	// config object
+	Config config;
+
+	// player object
+	Player player;
 
 	// if the file exists
 	if (read)
@@ -96,11 +123,17 @@ std::vector<Room> readTextFile(std::string filePath)
 		// string to store the current line
 		std::string line;
 
-		// start off with a room
+		// object to store current room
 		Room currentRoom;
 
 		// amount of room objects created
 		int totalRooms = -1;
+
+		// amount of conf objects created
+		int totalConf = 0;
+
+		// amount of inventory objects created
+		int totalInv = 0;
 
 		// loop through the file
 		while (getline(read, line))
@@ -133,8 +166,44 @@ std::vector<Room> readTextFile(std::string filePath)
 					// increase room counter
 					totalRooms++;
 
-					// update room variables
-					currentRoom.name = splitLine[1];
+					// string to store the room name
+					std::string roomName;
+
+					// combine the room name
+					for (int i = 1; i < splitLine.size(); i++)
+						roomName += splitLine[i] + " ";
+
+					// remove last blank char from room name string
+					roomName.pop_back();
+
+					// update room name variable
+					currentRoom.name = roomName;
+				}
+
+				if (splitLine[0] == "CONF")
+				{
+					// check if multiple configs exist
+					if (totalConf > 0)
+					{
+						std::cout << "multiple configuration declarations detected, please ensure your text file only has one.\n";
+						exit(EXIT_FAILURE);
+					}
+
+					// increase config counter
+					totalConf++;
+				}
+
+				if (splitLine[0] == "INV")
+				{
+					// check if multiple configs exist
+					if (totalInv > 0)
+					{
+						std::cout << "multiple inventory declarations detected, please ensure your text file only has one.\n";
+						exit(EXIT_FAILURE);
+					}
+
+					// increase config counter
+					totalInv++;
 				}
 			}
 
@@ -147,28 +216,43 @@ std::vector<Room> readTextFile(std::string filePath)
 				// split the string
 				std::vector<std::string> splitLine = splitString(line);
 
+				// line input string
+				std::string lineInput;
+
+				// combine the input string
+				for (int i = 1; i < splitLine.size(); i++)
+					lineInput += splitLine[i] + " ";
+
+				// remove last blank char from input string
+				lineInput.pop_back();
+
 				if (splitLine[0] == "ECHO")
-					for (int i = 1; i < splitLine.size(); i++)
-						currentRoom.echo += splitLine[i] + " ";
+					currentRoom.echo = lineInput;
 
 				if (splitLine[0] == "EXAM")
-					for (int i = 1; i < splitLine.size(); i++)
-						currentRoom.examine += splitLine[i] + " ";
+					currentRoom.examine = lineInput;
 
 				if (splitLine[0] == "NORTH")
-					currentRoom.northName = splitLine[1];
+					currentRoom.northName = lineInput;
 
 				if (splitLine[0] == "EAST")
-					currentRoom.eastName = splitLine[1];
+					currentRoom.eastName = lineInput;
 
 				if (splitLine[0] == "SOUTH")
-					currentRoom.southName = splitLine[1];
+					currentRoom.southName = lineInput;
 
 				if (splitLine[0] == "WEST")
-					currentRoom.westName = splitLine[1];
+					currentRoom.westName = lineInput;
+
+				if (splitLine[0] == "START")
+					config.entryPointName = lineInput;
+
+				if (splitLine[0] == "ITEM")
+					player.inventory.push_back(lineInput);
 			}
 		}
 
+		// if no rooms exist
 		if (totalRooms == -1)
 		{
 			std::cout << "cannot read this text file, please double check your text file\n";
@@ -192,19 +276,27 @@ std::vector<Room> readTextFile(std::string filePath)
 	// set the room locations to the array indexes
 	rooms = setRoomIndexes(rooms);
 
-	return rooms;
+	// create declaration object
+	GameDeclarations gameDeclarations(config, player, rooms);
+
+	return gameDeclarations;
 }
 
-void playGame(std::vector<Room> rooms)
+void playGame(std::vector<Room> rooms, Config config, Player player)
 {
-	// boolean to determine if game is running
-	bool running = true;
+	// get the entry point number
+	for (int i = 0; i < rooms.size(); i++)
+		if (rooms[i].name == config.entryPointName)
+			config.entryPoint = i;
 
 	// integer to store current room index
-	int roomIndex = 0;
+	int roomIndex = config.entryPoint;
 
 	// integer to store previous room index
 	int prevRoomIndex = -1;
+
+	// boolean to determine if game is running
+	bool running = true;
 
 	// string to store current user input
 	std::string input;
@@ -225,11 +317,14 @@ void playGame(std::vector<Room> rooms)
 		if (roomIndex != prevRoomIndex)
 		{
 			// display the rooms description
-			std::cout << rooms[roomIndex].echo << "\n";
+			std::cout << rooms[roomIndex].echo;
 
 			// update previous room index
 			prevRoomIndex = roomIndex;
 		}
+
+		// newline
+		std::cout << "\n";
 
 		// display input prompt
 		std::cout << "> ";
@@ -242,10 +337,10 @@ void playGame(std::vector<Room> rooms)
 
 		// interpret commands
 		if (input == "examine")
-			std::cout << rooms[roomIndex].examine << "\n";
+			std::cout << rooms[roomIndex].examine;
 
 		else if (input == "look")
-			std::cout << rooms[roomIndex].echo << "\n";
+			std::cout << rooms[roomIndex].echo;
 
 		else if (input == "north")
 			roomIndex = rooms[roomIndex].north;
@@ -259,6 +354,13 @@ void playGame(std::vector<Room> rooms)
 		else if (input == "west")
 			roomIndex = rooms[roomIndex].west;
 
+		else if (input == "inventory")
+			for (int i = 0; i < player.inventory.size(); i++)
+				std::cout << player.inventory[i] << "\t";
+
+		else if (input == "exit")
+			exit(EXIT_SUCCESS);
+
 		else
 			std::cout << "you cannot perform this action\n";
 	}
@@ -266,12 +368,12 @@ void playGame(std::vector<Room> rooms)
 
 int main(int argc, char** argv)
 {
-	// pointer to array of rooms
-	std::vector<Room> rooms;
+	// object storing all game declartations from text file
+	GameDeclarations gameDeclarations;
 
 	// check if first argument is provided
 	if (argv[1])
-		rooms = readTextFile(argv[1]);
+		gameDeclarations = readTextFile(argv[1]);
 
 	// if first argument is not provided
 	else
@@ -281,7 +383,7 @@ int main(int argc, char** argv)
 	}
 
 	// play the game
-	playGame(rooms);
+	playGame(gameDeclarations.rooms, gameDeclarations.config, gameDeclarations.player);
 
 	// exit the main method (should never reach this)
 	return 0;
